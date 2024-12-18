@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wordle Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            text-align: center;
+            width: 300px;
+        }
+
+        h1 {
+            font-size: 36px;
+            color: #333;
+        }
+
+        .word-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .cell {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #ccc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            background-color: #fff;
+        }
+
+        .input-row {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .input-cell {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #ccc;
+            font-size: 1.5rem;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .input-cell:focus {
+            outline: none;
+        }
+
+        .button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-top: 20px;
+            font-size: 1.2rem;
+        }
+
+        .button:hover {
+            background-color: #45a049;
+        }
+
+        .message {
+            font-size: 1.2rem;
+            margin-top: 20px;
+            color: #333;
+        }
+
+        .cell.correct {
+            background-color: #6aaa64; /* Green for correct */
+            color: white;
+        }
+
+        .cell.present {
+            background-color: #c9b458; /* Yellow for present but in wrong position */
+            color: white;
+        }
+
+        .cell.absent {
+            background-color: #787c7e; /* Gray for absent letters */
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Wordle</h1>
+        <div class="word-grid" id="wordGrid"></div>
+
+        <div class="input-row" id="inputRow">
+            <input class="input-cell" type="text" maxlength="1" id="input1" autofocus />
+            <input class="input-cell" type="text" maxlength="1" id="input2" />
+            <input class="input-cell" type="text" maxlength="1" id="input3" />
+            <input class="input-cell" type="text" maxlength="1" id="input4" />
+            <input class="input-cell" type="text" maxlength="1" id="input5" />
+        </div>
+
+        <button class="button" onclick="checkGuess()">Check Guess</button>
+        <div class="message" id="message"></div>
+    </div>
+
+    <script>
+        const words = ["apple", "grape", "peach", "lemon", "mango"];
+        const targetWord = words[Math.floor(Math.random() * words.length)];
+        const wordGrid = document.getElementById("wordGrid");
+        const message = document.getElementById("message");
+
+        let currentRow = 0;
+        let guessedWords = [];
+        let maxAttempts = 6;
+
+        // Create empty grid
+        function createWordGrid() {
+            for (let i = 0; i < maxAttempts; i++) {
+                let row = [];
+                for (let j = 0; j < 5; j++) {
+                    let cell = document.createElement("div");
+                    cell.classList.add("cell");
+                    row.push(cell);
+                    wordGrid.appendChild(cell);
+                }
+            }
+        }
+
+        createWordGrid();
+
+        // Handle typing behavior in input fields
+        const inputCells = Array.from(document.querySelectorAll('.input-cell'));
+        inputCells.forEach((input, index) => {
+            input.addEventListener('input', (e) => {
+                const currentInput = e.target;
+                const nextInput = inputCells[index + 1];
+
+                if (currentInput.value) {
+                    if (nextInput) {
+                        nextInput.focus();
+                    }
+                }
+            });
+        });
+
+        // Check guess function
+        function checkGuess() {
+            const guess = getCurrentGuess();
+
+            // Validate guess length
+            if (guess.length !== 5) {
+                message.textContent = "Please enter a 5-letter word.";
+                return;
+            }
+
+            // Check if the guess is valid (only alphabets)
+            if (!/^[a-zA-Z]+$/.test(guess)) {
+                message.textContent = "Only alphabet letters allowed.";
+                return;
+            }
+
+            // Convert guess to lowercase
+            const guessLower = guess.toLowerCase();
+            const targetLower = targetWord.toLowerCase();
+
+            // Compare guess with target word
+            const result = compareGuess(guessLower, targetLower);
+
+            // Display result in grid
+            displayGuess(result);
+
+            // Check if the word was guessed correctly
+            if (guessLower === targetLower) {
+                message.textContent = "Congratulations! You guessed the word!";
+            } else {
+                currentRow++;
+                if (currentRow === maxAttempts) {
+                    message.textContent = `Game Over! The word was: ${targetWord}`;
+                } else {
+                    message.textContent = "Try again!";
+                    resetInputFields(); // Clear the input fields after each guess
+                }
+            }
+        }
+
+        // Get current guess from input fields
+        function getCurrentGuess() {
+            let guess = "";
+            for (let i = 1; i <= 5; i++) {
+                guess += document.getElementById(`input${i}`).value;
+            }
+            return guess;
+        }
+
+        // Compare guess with the target word
+        function compareGuess(guess, target) {
+            let result = [];
+            let targetCopy = target.split(""); // Copy the target word for letter tracking
+
+            // First, check for correct letters (green)
+            for (let i = 0; i < 5; i++) {
+                if (guess[i] === target[i]) {
+                    result.push("correct");
+                    targetCopy[i] = null; // Remove matched letters
+                } else {
+                    result.push("absent");
+                }
+            }
+
+            // Now, check for present letters (yellow)
+            for (let i = 0; i < 5; i++) {
+                if (result[i] !== "correct" && targetCopy.includes(guess[i])) {
+                    result[i] = "present";
+                    targetCopy[targetCopy.indexOf(guess[i])] = null; // Remove matched letters
+                }
+            }
+
+            return result;
+        }
+
+        // Display guess result in the grid
+        function displayGuess(result) {
+            const rowStartIndex = currentRow * 5;
+            for (let i = 0; i < 5; i++) {
+                const cell = wordGrid.children[rowStartIndex + i];
+                cell.textContent = getCurrentGuess()[i].toUpperCase();
+                cell.classList.add(result[i]);
+            }
+        }
+
+        // Reset the input fields for the next guess
+        function resetInputFields() {
+            for (let i = 1; i <= 5; i++) {
+                document.getElementById(`input${i}`).value = "";
+            }
+            // Focus the first input box
+            document.getElementById("input1").focus();
+        }
+    </script>
+</body>
+</html>
